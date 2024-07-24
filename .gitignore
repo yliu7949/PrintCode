@@ -1,0 +1,7 @@
+# Build
+/target
+
+# Development
+code_folder
+**/*.pdf
+
