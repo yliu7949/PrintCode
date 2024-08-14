@@ -70,7 +70,7 @@ fn main() {
     let code_name = matches.get_one::<String>("code-name").unwrap();
     let code_version = matches.get_one::<String>("code-version").unwrap();
 
-    let (doc, _page1, _layer1) = PdfDocument::new("Code Document", Mm(210.0), Mm(297.0), "Layer 1");
+    let (doc, page1, layer1) = PdfDocument::new("Code Document", Mm(210.0), Mm(297.0), "Layer 1");
     let font_path = format!("{}/{}", font_dir, font_name);
     let font_file = File::open(font_path).expect("Failed to open font file");
     let font = doc.add_external_font(font_file).expect("Failed to add font");
@@ -102,7 +102,11 @@ fn main() {
             let mut line_index = 1;
 
             while index < lines.len() {
-                let (page, layer) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 1");
+                let (page, layer) = if page_number == 1 {
+                    (page1, layer1)
+                } else {
+                    doc.add_page(Mm(210.0), Mm(297.0), "Layer 1")
+                };
                 let current_layer = doc.get_page(page).get_layer(layer);
 
                 // 添加页眉文字
