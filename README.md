@@ -6,6 +6,7 @@
 # PrintCode
 
 [![License](https://img.shields.io/github/license/yliu7949/PrintCode)](https://github.com/yliu7949/PrintCode/blob/master/LICENSE)
+[![Build Status](https://github.com/yliu7949/PrintCode/actions/workflows/rust.yml/badge.svg)](https://github.com/yliu7949/PrintCode/actions?query=workflow%3ARust)
 [![Github Downloads](https://img.shields.io/github/downloads/yliu7949/PrintCode/total.svg)](http://gra.caldis.me/?url=https://github.com/yliu7949/PrintCode)
 <a title="Hits" target="_blank" href="https://github.com/yliu7949/PrintCode"><img src="https://hits.b3log.org/yliu7949/PrintCode.svg"></a>
 [![Github Release Version](https://img.shields.io/github/v/release/yliu7949/PrintCode?color=green&include_prereleases)](https://github.com/yliu7949/PrintCode/releases/latest)
