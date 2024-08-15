@@ -95,6 +95,6 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 
 ## 许可证
 
-本项目采用 MIT 许可证，详情请参阅 LICENSE 文件。
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode?ref=badge_large&issueType=license)
 
  
