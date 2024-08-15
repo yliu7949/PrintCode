@@ -1,14 +1,194 @@
-use clap::{Arg, Command};
-use printpdf::*;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter};
+use std::io::{BufRead, BufReader, Read};
+
+use clap::{Arg, Command};
+use lopdf::{dictionary, Document, Object, StringFormat};
+use printpdf::*;
+use rusttype::{Font, Scale};
 use textwrap::{fill, Options};
 use walkdir::WalkDir;
+
+struct PdfWriter<'a> {
+    doc: Option<PdfDocumentReference>,
+    font: IndirectFontRef,
+    font_path: &'a str,
+    code_name: &'a str,
+    code_version: &'a str,
+    lines_per_page: usize,
+    page_number: usize,
+    line_index: usize,
+    current_layer: PdfLayerReference,
+    page_dimensions: (Mm, Mm),
+    header_left_indent: Mm,
+}
+
+impl<'a> PdfWriter<'a> {
+    fn new(
+        font_path: &'a str,
+        code_name: &'a str,
+        code_version: &'a str,
+        lines_per_page: usize,
+        page_dimensions: (Mm, Mm),
+    ) -> Self {
+        let (doc, page1, layer1) = PdfDocument::new(
+            "Code Document",
+            page_dimensions.0,
+            page_dimensions.1,
+            "Layer 1",
+        );
+        let font_file = File::open(font_path).expect("Failed to open font file");
+        let font = doc
+            .add_external_font(font_file)
+            .expect("Failed to add font");
+
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+        let mut writer = Self {
+            doc: Some(doc), // Wrap doc in Option
+            font,
+            font_path,
+            code_name,
+            code_version,
+            lines_per_page,
+            page_number: 1,
+            line_index: 1,
+            current_layer,
+            page_dimensions,
+            header_left_indent: Mm(-1.0),
+        };
+
+        writer.write_header();
+        writer
+    }
+
+    fn write_header(&mut self) {
+        // Center the header text
+        let header = format!("{} {}", self.code_name, self.code_version);
+        if self.header_left_indent < Mm(0.0) {
+            let header_width = self.calculate_text_width(&*header, 10.0);
+            self.header_left_indent = (self.page_dimensions.0 - Mm(header_width)) / 2.0;
+        }
+        self.current_layer.use_text(
+            &header,
+            10.0,
+            self.header_left_indent,
+            Mm(278.5),
+            &self.font,
+        );
+
+        let line = Line {
+            points: vec![
+                (Point::new(Mm(20.0), Mm(277.0)), false),
+                (Point::new(Mm(184.0), Mm(277.0)), false),
+            ],
+            is_closed: false,
+        };
+        self.current_layer.set_outline_thickness(1.2);
+        self.current_layer
+            .set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+        self.current_layer.add_line(line);
+
+        self.current_layer.use_text(
+            format!("{}", self.page_number),
+            11.0,
+            Mm(189.0),
+            Mm(276.5),
+            &self.font,
+        );
+    }
+
+    fn add_line(&mut self, line: &str) {
+        if self.line_index > self.lines_per_page {
+            self.new_page();
+        }
+
+        let wrapped_line = fill(line, Options::new(90).subsequent_indent("    "));
+        let mut y = 272.0 - 5.4 * (self.line_index - 1) as f64;
+        for wrapped_line in wrapped_line.lines() {
+            if self.line_index > self.lines_per_page {
+                self.new_page();
+                y = 272.0;
+            }
+
+            self.current_layer.use_text(
+                format!("{:>4}    {}", self.line_index, wrapped_line),
+                11.0,
+                Mm(6.0),
+                Mm(y as f32),
+                &self.font,
+            );
+
+            y -= 5.4;
+            self.line_index += 1;
+        }
+    }
+
+    fn new_page(&mut self) {
+        self.page_number += 1;
+        self.line_index = 1;
+        let (page, layer) = self.doc.as_ref().unwrap().add_page(
+            self.page_dimensions.0,
+            self.page_dimensions.1,
+            "Layer 1",
+        );
+        self.current_layer = self.doc.as_ref().unwrap().get_page(page).get_layer(layer);
+        self.write_header();
+    }
+
+    fn save(mut self, output_pdf_path: &str) {
+        let doc = self.doc.take().unwrap(); // Take ownership of doc
+        let mut pdf_document = doc.save_to_bytes().expect("Failed to save to bytes");
+        let mut lopdf_doc =
+            Document::load_mem(&mut pdf_document).expect("Failed to load PDF document");
+
+        // Convert the title string to UTF-16BE and add a BOM (Byte Order Mark)
+        let title_str = format!("{} {}", self.code_name, self.code_version);
+        let mut title_utf16be = vec![0xFE, 0xFF];
+        title_utf16be.extend(
+            title_str
+                .encode_utf16()
+                .flat_map(|u| vec![(u >> 8) as u8, u as u8]),
+        );
+
+        // Set the document info dictionary
+        let info_dict = dictionary! {
+            "Title" => Object::String(title_utf16be, StringFormat::Literal),
+            "Creator" => Object::String(b"PrintCode".to_vec(), StringFormat::Literal),
+            "Producer" => Object::String(b"https://github.com/yliu7949/PrintCode".to_vec(), StringFormat::Literal),
+        };
+        // Set document information properties
+        let info = lopdf_doc.add_object(info_dict);
+        lopdf_doc.trailer.set("Info", info);
+
+        // Save the final PDF file
+        lopdf_doc
+            .save(output_pdf_path)
+            .expect("Failed to save PDF document");
+    }
+
+    fn calculate_text_width(&mut self, text: &str, font_size: f32) -> f32 {
+        // https://github.com/fschutt/printpdf/issues/49#issuecomment-1110856946
+        let font_file = File::open(&self.font_path).expect("Failed to open font file");
+        let mut font_cache = BufReader::new(font_file);
+        let mut buffer = Vec::new();
+        font_cache
+            .read_to_end(&mut buffer)
+            .expect("Error reading font file");
+
+        let font = Font::try_from_bytes(&buffer).expect("Error loading font");
+
+        let scale = Scale::uniform(font_size);
+        let str_width: f32 = font
+            .glyphs_for(text.chars())
+            .map(|g| g.scaled(scale).h_metrics().advance_width)
+            .sum();
+        str_width * 25.4 / 72.0
+    }
+}
 
 fn main() {
     let matches = Command::new("printcode")
         .version("0.1.0")
-        .author("Your Name")
+        .author("yliu7949")
         .about("Generates a PDF from code files with pagination and custom headers.")
         .arg(
             Arg::new("font-dir")
@@ -16,7 +196,7 @@ fn main() {
                 .long("font-dir")
                 .value_name("FONT_DIR")
                 .help("Directory where the font files are located")
-                .required(true)
+                .default_value("C:/Windows/Fonts")
                 .num_args(1),
         )
         .arg(
@@ -25,7 +205,7 @@ fn main() {
                 .long("font-name")
                 .value_name("FONT_NAME")
                 .help("Name of the font file to use")
-                .required(true)
+                .default_value("simsun.ttc")
                 .num_args(1),
         )
         .arg(
@@ -58,109 +238,53 @@ fn main() {
                 .long("code-version")
                 .value_name("CODE_VERSION")
                 .help("Code version for the PDF document")
-                .required(true)
+                .default_value("V1.0.0")
+                .num_args(1),
+        )
+        .arg(
+            Arg::new("output-path")
+                .short('o')
+                .long("output-path")
+                .value_name("OUTPUT_FILE")
+                .help("Path to the output PDF document")
+                .default_value("output.pdf")
                 .num_args(1),
         )
         .get_matches();
 
+    let verbose = matches.get_flag("verbose");
     let font_dir = matches.get_one::<String>("font-dir").unwrap();
     let font_name = matches.get_one::<String>("font-name").unwrap();
     let code_folder = matches.get_one::<String>("code-folder").unwrap();
-    let verbose = matches.get_flag("verbose");
     let code_name = matches.get_one::<String>("code-name").unwrap();
     let code_version = matches.get_one::<String>("code-version").unwrap();
+    let output_pdf_path = matches.get_one::<String>("output-path").unwrap();
 
-    let (doc, page1, layer1) = PdfDocument::new("Code Document", Mm(210.0), Mm(297.0), "Layer 1");
     let font_path = format!("{}/{}", font_dir, font_name);
-    let font_file = File::open(font_path).expect("Failed to open font file");
-    let font = doc.add_external_font(font_file).expect("Failed to add font");
-
-    let lines_per_page = 50;
-    let mut page_number = 1;
+    let mut pdf_writer = PdfWriter::new(
+        &font_path,
+        code_name,
+        code_version,
+        50,                     // lines_per_page
+        (Mm(210.0), Mm(297.0)), // A4 page dimensions
+    );
 
     for entry in WalkDir::new(code_folder).into_iter().filter_map(|e| e.ok()) {
         if entry.path().is_file() {
             let file = File::open(entry.path()).expect("Failed to open code file");
             let reader = BufReader::new(file);
 
-            let mut lines = Vec::new();
-            let mut last_line_empty = false;
             for line in reader.lines() {
                 let line = line.expect("Failed to read line");
-                if line.trim().is_empty() {
-                    if !last_line_empty {
-                        lines.push(line);
-                        last_line_empty = true;
-                    }
-                } else {
-                    lines.push(line);
-                    last_line_empty = false;
+                if !line.trim().is_empty() {
+                    pdf_writer.add_line(&line);
                 }
             }
-
-            let mut index = 0;
-            let mut line_index = 1;
-
-            while index < lines.len() {
-                let (page, layer) = if page_number == 1 {
-                    (page1, layer1)
-                } else {
-                    doc.add_page(Mm(210.0), Mm(297.0), "Layer 1")
-                };
-                let current_layer = doc.get_page(page).get_layer(layer);
-
-                // 添加页眉文字
-                let header = format!("{} {}", code_name, code_version);
-                current_layer.use_text(&header, 10.0, Mm(78.0), Mm(278.5), &font);
-
-                // 绘制下划线
-                let line = Line {
-                    points: vec![
-                        (Point::new(Mm(20.0), Mm(277.0)), false),
-                        (Point::new(Mm(184.0), Mm(277.0)), false),
-                    ],
-                    is_closed: false,
-                };
-                current_layer.set_outline_thickness(1.2);
-                current_layer.set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
-                current_layer.add_line(line);
-
-                // 添加页码
-                current_layer.use_text(format!("{}", page_number), 11.0, Mm(189.0), Mm(276.5), &font);
-
-                // 添加行号和代码
-                let mut y = 272.0;
-                let mut page_lines_count = 0;
-
-                while page_lines_count < lines_per_page && index < lines.len() {
-                    let line = &lines[index];
-                    let wrapped_line = fill(line, Options::new(90).subsequent_indent("    "));
-                    for wrapped_line in wrapped_line.lines() {
-                        if page_lines_count >= lines_per_page {
-                            break;
-                        }
-                        current_layer.use_text(
-                            format!("{:>4}    {}", line_index, wrapped_line), // 行号后面隔4个空格
-                            11.0, // 字号
-                            Mm(6.0),
-                            Mm(y),
-                            &font,
-                        );
-                        y -= 5.4;
-                        line_index += 1;
-                        page_lines_count += 1;
-                    }
-                    index += 1;
-                }
-
-                page_number += 1;
-                line_index = 1; // Reset line number for the next page
-            }
+            pdf_writer.add_line("\n");
         }
     }
 
-    let output = File::create("output.pdf").expect("Failed to create output file");
-    doc.save(&mut BufWriter::new(output)).expect("Failed to save PDF document");
+    pdf_writer.save(output_pdf_path);
 
     if verbose {
         println!("PDF document generated successfully.");
