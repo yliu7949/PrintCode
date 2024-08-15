@@ -56,7 +56,7 @@
 
 3. 该命令将生成一个名为 `MyOutput.pdf` 的文档，文档里包含了 `src_folder` 文件夹中所有文本文件的文本内容。
 
-**Tips：**如果你正在使用 Windows 平台，且操作系统的字体文件夹 `C:/Windows/Fonts` 中已内置了 `simsun.ttc` 字体，则上述命令可以简化为：
+**Tips：** 如果你正在使用 Windows 平台，且操作系统的字体文件夹 `C:/Windows/Fonts` 中已内置了 `simsun.ttc` 字体，则上述命令可以简化为：
 
 ```bash
 ./printcode -d src_folder -n "PrintCode" -v "V1.0.0"
