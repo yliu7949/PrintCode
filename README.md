@@ -8,6 +8,7 @@
 [![License](https://img.shields.io/github/license/yliu7949/PrintCode)](https://github.com/yliu7949/PrintCode/blob/master/LICENSE)
 [![Build Status](https://github.com/yliu7949/PrintCode/actions/workflows/rust.yml/badge.svg)](https://github.com/yliu7949/PrintCode/actions?query=workflow%3ARust)
 [![Github Downloads](https://img.shields.io/github/downloads/yliu7949/PrintCode/total.svg)](http://gra.caldis.me/?url=https://github.com/yliu7949/PrintCode)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode?ref=badge_shield)
 <a title="Hits" target="_blank" href="https://github.com/yliu7949/PrintCode"><img src="https://hits.b3log.org/yliu7949/PrintCode.svg"></a>
 [![Github Release Version](https://img.shields.io/github/v/release/yliu7949/PrintCode?color=green&include_prereleases)](https://github.com/yliu7949/PrintCode/releases/latest)
 
@@ -98,3 +99,7 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 本项目采用 MIT 许可证，详情请参阅 LICENSE 文件。
 
  
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode?ref=badge_large)
