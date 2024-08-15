@@ -5,12 +5,12 @@
 
 # PrintCode
 
-[![License](https://img.shields.io/github/license/yliu7949/PrintCode.svg)](https://github.com/yliu7949/PrintCode/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/yliu7949/PrintCode)](https://github.com/yliu7949/PrintCode/blob/master/LICENSE)
 [![Github Downloads](https://img.shields.io/github/downloads/yliu7949/PrintCode/total.svg)](http://gra.caldis.me/?url=https://github.com/yliu7949/PrintCode)
 <a title="Hits" target="_blank" href="https://github.com/yliu7949/PrintCode"><img src="https://hits.b3log.org/yliu7949/PrintCode.svg"></a>
 [![Github Release Version](https://img.shields.io/github/v/release/yliu7949/PrintCode?color=green&include_prereleases)](https://github.com/yliu7949/PrintCode/releases/latest)
 
-`PrintCode` 是一个使用 Rust 语言编写的、用于从代码文件生成为带有自定义页眉的 PDF 文档的命令行工具。它支持从指定目录中读取代码文件，并将代码按照每页固定代码行数以美观的格式输出为 PDF 文档。该工具特别适用于需要将代码整理为文档以供打印或发布的场景，例如在申请计算机软件著作权登记时使用的程序鉴别材料。
+PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为带有自定义页眉的 PDF 文档的命令行工具。它支持从指定目录中读取代码文件，并将代码按照每页固定代码行数以美观的格式输出为 PDF 文档。该工具特别适用于需要将代码整理为文档以供打印或发布的场景，例如在申请计算机软件著作权登记时使用的程序鉴别材料。
 
 ## 功能
 
