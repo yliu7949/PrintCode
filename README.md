@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="240" src="https://github.com/yliu7949/PrintCode/blob/main/logo.svg" style="text-align: center;" alt="PrintCode logo">
+  <img width="190" src="https://raw.githubusercontent.com/yliu7949/PrintCode/master/logo.svg" style="text-align: center;" alt="PrintCode logo">
 </p>
 
 
@@ -70,9 +70,9 @@
 - **分页**：每页包含 50 行代码，超过 50 行自动分页。
 - **代码格式**：代码按原始格式显示，支持缩进。但所有空白行不会被输出。
 
-下面是生成的[示例 PDF 文档](https://github.com/yliu7949/KouShare-dl/blob/main/demo.pdf)的截图：
+下面是生成的[示例 PDF 文档](https://github.com/yliu7949/PrintCode/blob/master/demo.pdf)的截图：
 
-![demo](F:\IDEAProjects\printcode\demo.svg)
+![demo](https://raw.githubusercontent.com/yliu7949/PrintCode/master/demo.svg)
 
 ## 常见问题
 
