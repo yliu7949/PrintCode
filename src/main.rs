@@ -250,6 +250,13 @@ fn main() {
                 .default_value("output.pdf")
                 .num_args(1),
         )
+        .arg(
+            Arg::new("limit-pages")
+                .long("limit-pages")
+                .short('l')
+                .help("Limit the PDF to first 30 and last 30 pages if total exceeds 60 pages")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let verbose = matches.get_flag("verbose");
@@ -259,34 +266,94 @@ fn main() {
     let code_name = matches.get_one::<String>("code-name").unwrap();
     let code_version = matches.get_one::<String>("code-version").unwrap();
     let output_pdf_path = matches.get_one::<String>("output-path").unwrap();
+    let limit_pages = matches.get_flag("limit-pages");
 
     let font_path = format!("{}/{}", font_dir, font_name);
-    let mut pdf_writer = PdfWriter::new(
-        &font_path,
-        code_name,
-        code_version,
-        50,                     // lines_per_page
-        (Mm(210.0), Mm(297.0)), // A4 page dimensions
-    );
+
+    // Define lines_per_page
+    let lines_per_page = 50;
+
+    // Collect all lines first
+    let mut all_lines: Vec<String> = Vec::new();
 
     for entry in WalkDir::new(code_folder).into_iter().filter_map(|e| e.ok()) {
         if entry.path().is_file() {
             let file = File::open(entry.path()).expect("Failed to open code file");
             let reader = BufReader::new(file);
 
-            for line in reader.lines() {
-                let line = line.expect("Failed to read line");
+            for line_result in reader.lines() {
+                let line = line_result.expect("Failed to read line");
                 if !line.trim().is_empty() {
-                    pdf_writer.add_line(&line);
+                    let wrapped_line = fill(&line, Options::new(86));
+                    all_lines.extend(wrapped_line.lines().map(|s| s.to_string()));
                 }
             }
-            pdf_writer.add_line("\n");
         }
     }
 
+    // Determine which lines to include based on the limit_pages flag
+    let selected_lines = if limit_pages {
+        let total_lines = all_lines.len();
+        let total_pages = (total_lines + lines_per_page - 1) / lines_per_page;
+        let max_pages = 60;
+        let keep_pages = 30;
+        let keep_lines = keep_pages * lines_per_page;
+
+        if total_pages > max_pages {
+            if verbose {
+                println!(
+                    "[Info] Total pages ({} pages, {} lines) exceed {} pages. Limiting to first and last {} pages.",
+                    total_pages, total_lines, max_pages, keep_pages
+                );
+            }
+            let first_part = all_lines.iter().take(keep_lines).cloned().collect::<Vec<_>>();
+            let last_part = all_lines
+                .iter()
+                .rev()
+                .take(keep_lines)
+                .cloned()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect::<Vec<_>>();
+            [first_part, last_part].concat()
+        } else {
+            if verbose {
+                println!("[Info] Total pages ({} pages, {} lines) within the limit of {} pages.", total_pages, total_lines, max_pages);
+            }
+            all_lines
+        }
+    } else {
+        all_lines
+    };
+
+    if verbose {
+        let total_selected_pages = (selected_lines.len() + lines_per_page - 1) / lines_per_page;
+        println!(
+            "[Info] Total lines to write: {} ({} pages).",
+            selected_lines.len(),
+            total_selected_pages
+        );
+    }
+
+    // Initialize PdfWriter
+    let mut pdf_writer = PdfWriter::new(
+        &font_path,
+        code_name,
+        code_version,
+        lines_per_page,  // lines_per_page
+        (Mm(210.0), Mm(297.0)), // A4 page dimensions
+    );
+
+    // Write selected lines to the PDF
+    for line in selected_lines {
+        pdf_writer.add_line(&line);
+    }
+
+    // Save the PDF
     pdf_writer.save(output_pdf_path);
 
     if verbose {
-        println!("PDF document generated successfully.");
+        println!("[Info] PDF document generated successfully at '{}'.", output_pdf_path);
     }
 }
