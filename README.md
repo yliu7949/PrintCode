@@ -57,6 +57,8 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 
 3. 该命令将生成一个名为 `MyOutput.pdf` 的文档，文档里包含了 `src_folder` 文件夹中所有文本文件的文本内容。
 
+4. 如果仅需要生成连续前 30 页和连续后 30 页源代码为 PDF 文档，则可以使用 `--limit-pages` 或 `-l` 参数。
+
 **Tips：** 如果你正在使用 Windows 平台，且操作系统的字体文件夹 `C:/Windows/Fonts` 中已内置了 `simsun.ttc` 字体，则上述命令可以简化为：
 
 ```bash
