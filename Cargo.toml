@@ -1,11 +1,15 @@
 [package]
 name = "printcode"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-printpdf = "0.7.0"
-walkdir = "2.3.2"
-textwrap = "0.16.1"
-clap = "4.5.10"
-rusttype = "0.9.2"
+clap = "4.6.1"
+ignore = "0.4.25"
+rusttype = "0.9.3"
+textwrap = "0.16.2"
+
+[dependencies.printpdf]
+version = "0.9.1"
+default-features = false
+features = ["text_layout"]

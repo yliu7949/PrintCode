@@ -1,359 +1,121 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+mod cli;
+mod pdf;
+mod source;
 
-use clap::{Arg, Command};
-use lopdf::{dictionary, Document, Object, StringFormat};
-use printpdf::*;
-use rusttype::{Font, Scale};
-use textwrap::{fill, Options};
-use walkdir::WalkDir;
+use std::error::Error;
+use std::time::Instant;
 
-struct PdfWriter<'a> {
-    doc: Option<PdfDocumentReference>,
-    font: IndirectFontRef,
-    font_path: &'a str,
-    code_name: &'a str,
-    code_version: &'a str,
-    lines_per_page: usize,
-    page_number: usize,
-    line_index: usize,
-    current_layer: PdfLayerReference,
-    page_dimensions: (Mm, Mm),
-    header_left_indent: Mm,
+use printpdf::Mm;
+
+use crate::cli::parse_args;
+use crate::pdf::{PdfLayout, PdfWriter};
+use crate::source::{collect_code_lines, select_lines};
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let started_at = Instant::now();
+    let result = run();
+
+    println!("[Info] Total elapsed: {:.2?}.", started_at.elapsed());
+
+    result
 }
 
-impl<'a> PdfWriter<'a> {
-    fn new(
-        font_path: &'a str,
-        code_name: &'a str,
-        code_version: &'a str,
-        lines_per_page: usize,
-        page_dimensions: (Mm, Mm),
-    ) -> Self {
-        let (doc, page1, layer1) = PdfDocument::new(
-            "Code Document",
-            page_dimensions.0,
-            page_dimensions.1,
-            "Layer 1",
-        );
-        let font_file = File::open(font_path).expect("Failed to open font file");
-        let font = doc
-            .add_external_font(font_file)
-            .expect("Failed to add font");
+fn run() -> Result<(), Box<dyn Error>> {
+    let config = parse_args();
 
-        let current_layer = doc.get_page(page1).get_layer(layer1);
-        let mut writer = Self {
-            doc: Some(doc), // Wrap doc in Option
-            font,
-            font_path,
-            code_name,
-            code_version,
-            lines_per_page,
-            page_number: 1,
-            line_index: 1,
-            current_layer,
-            page_dimensions,
-            header_left_indent: Mm(-1.0),
-        };
+    let source = collect_code_lines(&config.code_folder)?;
+    let selection =
+        select_lines(source.lines, config.lines_per_page, config.limit_pages);
+    let total_selected_pages = selection.lines.len().div_ceil(config.lines_per_page);
 
-        writer.write_header();
-        writer
-    }
+    println!("[Info] Source folder: '{}'.", config.code_folder.display());
+    if config.verbose {
+        print_source_summary(&source.stats);
 
-    fn write_header(&mut self) {
-        // Center the header text
-        let header = format!("{} {}", self.code_name, self.code_version);
-        if self.header_left_indent < Mm(0.0) {
-            let header_width = self.calculate_text_width(&*header, 10.0);
-            self.header_left_indent = (self.page_dimensions.0 - Mm(header_width)) / 2.0;
-        }
-        self.current_layer.use_text(
-            &header,
-            10.0,
-            self.header_left_indent,
-            Mm(278.5),
-            &self.font,
-        );
-
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(20.0), Mm(277.0)), false),
-                (Point::new(Mm(184.0), Mm(277.0)), false),
-            ],
-            is_closed: false,
-        };
-        self.current_layer.set_outline_thickness(1.2);
-        self.current_layer
-            .set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
-        self.current_layer.add_line(line);
-
-        self.current_layer.use_text(
-            format!("{}", self.page_number),
-            11.0,
-            Mm(189.0),
-            Mm(276.5),
-            &self.font,
-        );
-    }
-
-    fn add_line(&mut self, line: &str) {
-        if self.line_index > self.lines_per_page {
-            self.new_page();
-        }
-
-        let wrapped_line = fill(line, Options::new(90).subsequent_indent("    "));
-        let mut y = 272.0 - 5.4 * (self.line_index - 1) as f64;
-        for wrapped_line in wrapped_line.lines() {
-            if self.line_index > self.lines_per_page {
-                self.new_page();
-                y = 272.0;
-            }
-
-            self.current_layer.use_text(
-                format!("{:>4}    {}", self.line_index, wrapped_line),
-                11.0,
-                Mm(6.0),
-                Mm(y as f32),
-                &self.font,
-            );
-
-            y -= 5.4;
-            self.line_index += 1;
+        if let Some(message) = selection.message {
+            println!("{message}");
         }
     }
 
-    fn new_page(&mut self) {
-        self.page_number += 1;
-        self.line_index = 1;
-        let (page, layer) = self.doc.as_ref().unwrap().add_page(
-            self.page_dimensions.0,
-            self.page_dimensions.1,
-            "Layer 1",
-        );
-        self.current_layer = self.doc.as_ref().unwrap().get_page(page).get_layer(layer);
-        self.write_header();
-    }
-
-    fn save(mut self, output_pdf_path: &str) {
-        let doc = self.doc.take().unwrap(); // Take ownership of doc
-        let mut pdf_document = doc.save_to_bytes().expect("Failed to save to bytes");
-        let mut lopdf_doc =
-            Document::load_mem(&mut pdf_document).expect("Failed to load PDF document");
-
-        // Convert the title string to UTF-16BE and add a BOM (Byte Order Mark)
-        let title_str = format!("{} {}", self.code_name, self.code_version);
-        let mut title_utf16be = vec![0xFE, 0xFF];
-        title_utf16be.extend(
-            title_str
-                .encode_utf16()
-                .flat_map(|u| vec![(u >> 8) as u8, u as u8]),
-        );
-
-        // Set the document info dictionary
-        let info_dict = dictionary! {
-            "Title" => Object::String(title_utf16be, StringFormat::Literal),
-            "Creator" => Object::String(b"PrintCode".to_vec(), StringFormat::Literal),
-            "Producer" => Object::String(b"https://github.com/yliu7949/PrintCode".to_vec(), StringFormat::Literal),
-        };
-        // Set document information properties
-        let info = lopdf_doc.add_object(info_dict);
-        lopdf_doc.trailer.set("Info", info);
-
-        // Save the final PDF file
-        lopdf_doc
-            .save(output_pdf_path)
-            .expect("Failed to save PDF document");
-    }
-
-    fn calculate_text_width(&mut self, text: &str, font_size: f32) -> f32 {
-        // https://github.com/fschutt/printpdf/issues/49#issuecomment-1110856946
-        let font_file = File::open(&self.font_path).expect("Failed to open font file");
-        let mut font_cache = BufReader::new(font_file);
-        let mut buffer = Vec::new();
-        font_cache
-            .read_to_end(&mut buffer)
-            .expect("Error reading font file");
-
-        let font = Font::try_from_bytes(&buffer).expect("Error loading font");
-
-        let scale = Scale::uniform(font_size);
-        let str_width: f32 = font
-            .glyphs_for(text.chars())
-            .map(|g| g.scaled(scale).h_metrics().advance_width)
-            .sum();
-        str_width * 25.4 / 72.0
-    }
-}
-
-fn main() {
-    let matches = Command::new("printcode")
-        .version("0.1.0")
-        .author("yliu7949")
-        .about("Generates a PDF from code files with pagination and custom headers.")
-        .arg(
-            Arg::new("font-dir")
-                .short('f')
-                .long("font-dir")
-                .value_name("FONT_DIR")
-                .help("Directory where the font files are located")
-                .default_value("C:/Windows/Fonts")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("font-name")
-                .short('t')
-                .long("font-name")
-                .value_name("FONT_NAME")
-                .help("Name of the font file to use")
-                .default_value("simsun.ttc")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("code-folder")
-                .short('d')
-                .long("code-folder")
-                .value_name("CODE_FOLDER")
-                .help("Directory containing code files")
-                .required(true)
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("verbose")
-                .long("verbose")
-                .help("Print detailed information")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("code-name")
-                .short('n')
-                .long("code-name")
-                .value_name("CODE_NAME")
-                .help("Code name for the PDF document")
-                .required(true)
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("code-version")
-                .short('v')
-                .long("code-version")
-                .value_name("CODE_VERSION")
-                .help("Code version for the PDF document")
-                .default_value("V1.0.0")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("output-path")
-                .short('o')
-                .long("output-path")
-                .value_name("OUTPUT_FILE")
-                .help("Path to the output PDF document")
-                .default_value("output.pdf")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("limit-pages")
-                .long("limit-pages")
-                .short('l')
-                .help("Limit the PDF to first 30 and last 30 pages if total exceeds 60 pages")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .get_matches();
-
-    let verbose = matches.get_flag("verbose");
-    let font_dir = matches.get_one::<String>("font-dir").unwrap();
-    let font_name = matches.get_one::<String>("font-name").unwrap();
-    let code_folder = matches.get_one::<String>("code-folder").unwrap();
-    let code_name = matches.get_one::<String>("code-name").unwrap();
-    let code_version = matches.get_one::<String>("code-version").unwrap();
-    let output_pdf_path = matches.get_one::<String>("output-path").unwrap();
-    let limit_pages = matches.get_flag("limit-pages");
-
-    let font_path = format!("{}/{}", font_dir, font_name);
-
-    // Define lines_per_page
-    let lines_per_page = 50;
-
-    // Collect all lines first
-    let mut all_lines: Vec<String> = Vec::new();
-
-    for entry in WalkDir::new(code_folder).into_iter().filter_map(|e| e.ok()) {
-        if entry.path().is_file() {
-            let file = File::open(entry.path()).expect("Failed to open code file");
-            let reader = BufReader::new(file);
-
-            for line_result in reader.lines() {
-                let line = line_result.expect("Failed to read line");
-                if !line.trim().is_empty() {
-                    let wrapped_line = fill(&line, Options::new(86));
-                    all_lines.extend(wrapped_line.lines().map(|s| s.to_string()));
-                }
-            }
-        }
-    }
-
-    // Determine which lines to include based on the limit_pages flag
-    let selected_lines = if limit_pages {
-        let total_lines = all_lines.len();
-        let total_pages = (total_lines + lines_per_page - 1) / lines_per_page;
-        let max_pages = 60;
-        let keep_pages = 30;
-        let keep_lines = keep_pages * lines_per_page;
-
-        if total_pages > max_pages {
-            if verbose {
-                println!(
-                    "[Info] Total pages ({} pages, {} lines) exceed {} pages. Limiting to first and last {} pages.",
-                    total_pages, total_lines, max_pages, keep_pages
-                );
-            }
-            let first_part = all_lines.iter().take(keep_lines).cloned().collect::<Vec<_>>();
-            let last_part = all_lines
-                .iter()
-                .rev()
-                .take(keep_lines)
-                .cloned()
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect::<Vec<_>>();
-            [first_part, last_part].concat()
-        } else {
-            if verbose {
-                println!("[Info] Total pages ({} pages, {} lines) within the limit of {} pages.", total_pages, total_lines, max_pages);
-            }
-            all_lines
-        }
-    } else {
-        all_lines
-    };
-
-    if verbose {
-        let total_selected_pages = (selected_lines.len() + lines_per_page - 1) / lines_per_page;
-        println!(
-            "[Info] Total lines to write: {} ({} pages).",
-            selected_lines.len(),
-            total_selected_pages
-        );
-    }
-
-    // Initialize PdfWriter
-    let mut pdf_writer = PdfWriter::new(
-        &font_path,
-        code_name,
-        code_version,
-        lines_per_page,  // lines_per_page
-        (Mm(210.0), Mm(297.0)), // A4 page dimensions
+    println!(
+        "[Info] Total lines to write: {} ({} pages).",
+        selection.lines.len(),
+        total_selected_pages
     );
 
-    // Write selected lines to the PDF
-    for line in selected_lines {
+    let mut pdf_writer = PdfWriter::new(
+        &config.font_path(),
+        &config.code_name,
+        &config.code_version,
+        config.lines_per_page,
+        (Mm(210.0), Mm(297.0)),
+    )?;
+
+    println!("[Info] Font: '{}'.", config.font_path().display());
+
+    if config.verbose {
+        print_output_summary(&config, pdf_writer.layout());
+    }
+
+    for line in selection.lines {
         pdf_writer.add_line(&line);
     }
 
-    // Save the PDF
-    pdf_writer.save(output_pdf_path);
+    pdf_writer.save(&config.output_path)?;
 
-    if verbose {
-        println!("[Info] PDF document generated successfully at '{}'.", output_pdf_path);
+    println!(
+        "[Info] PDF document generated successfully at '{}'.",
+        config.output_path.display()
+    );
+
+    Ok(())
+}
+
+fn print_source_summary(stats: &crate::source::SourceStats) {
+    println!(
+        "[Info] Files after .gitignore and directory filters: {}.",
+        stats.scanned_files_after_gitignore
+    );
+    println!(
+        "[Info] Selected code text files: {}.",
+        stats.selected_files.len()
+    );
+    println!(
+        "[Info] Skipped files: {} non-code/document/resource, {} binary/non-UTF-8.",
+        stats.skipped_non_code_files, stats.skipped_non_text_files
+    );
+
+    let preview_count = 20;
+    for path in stats.selected_files.iter().take(preview_count) {
+        println!("[Info]   + {}", path.display());
     }
+
+    if stats.selected_files.len() > preview_count {
+        println!(
+            "[Info]   ... {} more files.",
+            stats.selected_files.len() - preview_count
+        );
+    }
+}
+
+fn print_output_summary(config: &crate::cli::CliConfig, layout: PdfLayout) {
+    println!("[Info] Output path: '{}'.", config.output_path.display());
+    println!(
+        "[Info] Page layout: {} lines/page, {:.1}pt body, {:.2}mm line height.",
+        config.lines_per_page, layout.body_font_size, layout.body_line_height_mm
+    );
+    println!(
+        "[Info] PDF wrap width: {} code characters after line-number gutter.",
+        layout.body_wrap_width
+    );
+    println!(
+        "[Info] Body block: {:.2}mm wide, centered at {:.2}mm left indent.",
+        layout.body_block_width_mm, layout.body_left_mm
+    );
+    println!(
+        "[Info] Header rule: {:.2}mm to {:.2}mm, page number at {:.2}mm.",
+        layout.header_rule_left_mm,
+        layout.header_rule_right_mm,
+        layout.header_page_number_x_mm
+    );
 }
