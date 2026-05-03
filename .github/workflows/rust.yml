@@ -57,10 +57,6 @@ jobs:
             os: macos-latest
             archive: tar.gz
             binary: printcode
-          - name: macos-x86_64
-            os: macos-13
-            archive: tar.gz
-            binary: printcode
           - name: windows-x86_64
             os: windows-latest
             archive: zip
@@ -153,7 +149,6 @@ jobs:
           Assets:
           - Linux x86_64 binary
           - macOS Apple Silicon binary
-          - macOS Intel binary
           - Windows x86_64 binary
           - Source code archives
           EOF
