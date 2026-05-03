@@ -130,28 +130,21 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Archive source code
+      - name: Remove existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="${{ steps.package.outputs.tag }}"
-          git archive --format=tar.gz \
-            --output "dist/printcode-${tag}-source.tar.gz" HEAD
-          git archive --format=zip \
-            --output "dist/printcode-${tag}-source.zip" HEAD
 
-      - name: Write release notes
-        run: |
-          cat > release-notes.md <<'EOF'
-          PrintCode release ${{ steps.package.outputs.tag }}.
-
-          This release includes cross-platform command line binaries and source code archives.
-
-          Assets:
-          - Linux x86_64 binary
-          - macOS Apple Silicon binary
-          - Windows x86_64 binary
-          - Source code archives
-          EOF
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release delete "${tag}" --yes --cleanup-tag
+          else
+            gh api \
+              --method DELETE \
+              "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" \
+              >/dev/null 2>&1 || true
+          fi
 
       - name: Create GitHub release
         env:
@@ -159,5 +152,5 @@ jobs:
         run: |
           gh release create "${{ steps.package.outputs.tag }}" dist/* \
             --title "PrintCode ${{ steps.package.outputs.tag }}" \
-            --notes-file release-notes.md \
+            --generate-notes \
             --target "$GITHUB_SHA"
