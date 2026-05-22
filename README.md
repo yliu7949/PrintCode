@@ -1,15 +1,15 @@
 <p align="center">
-  <img width="190" src="https://raw.githubusercontent.com/yliu7949/PrintCode/master/logo.svg" style="text-align: center;" alt="PrintCode logo">
+  <img width="190" src="https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/raw/master/logo.svg" style="text-align: center;" alt="PrintCode logo">
 </p>
 
 
 # PrintCode
 
-[![License](https://img.shields.io/github/license/yliu7949/PrintCode)](https://github.com/yliu7949/PrintCode/blob/master/LICENSE)
-[![Build Status](https://github.com/yliu7949/PrintCode/actions/workflows/rust.yml/badge.svg)](https://github.com/yliu7949/PrintCode/actions?query=workflow%3ARust)
-[![Github Downloads](https://img.shields.io/github/downloads/yliu7949/PrintCode/total.svg)](http://gra.caldis.me/?url=https://github.com/yliu7949/PrintCode)
-<a title="Hits" target="_blank" href="https://github.com/yliu7949/PrintCode"><img src="https://hits.b3log.org/yliu7949/PrintCode.svg"></a>
-[![Github Release Version](https://img.shields.io/github/v/release/yliu7949/PrintCode?color=green&include_prereleases)](https://github.com/yliu7949/PrintCode/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/blob/master/LICENSE)
+[![CI Workflow](https://img.shields.io/badge/CI-workflow-blue.svg)](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/blob/master/.github/workflows/rust.yml)
+[![Downloads](https://img.shields.io/badge/Downloads-Releases-blue.svg)](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/releases)
+<a title="Hits" target="_blank" href="https://git.lug.ustc.edu.cn/gleamoe/PrintCode"><img src="https://hits.b3log.org/gleamoe/PrintCode.svg"></a>
+[![Release Version](https://img.shields.io/badge/Release-latest-green.svg)](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/releases)
 
 PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为带有自定义页眉的 PDF 文档的命令行工具。它支持从指定目录中读取代码文件，并将代码按照每页固定代码行数以美观的格式输出为 PDF 文档。该工具特别适用于需要将代码整理为文档以供打印或发布的场景，例如在申请计算机软件著作权登记时使用的程序鉴别材料。
 
@@ -25,7 +25,7 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 1. 克隆项目到本地：
 
    ```bash
-   git clone https://github.com/yliu7949/PrintCode.git
+   git clone https://git.lug.ustc.edu.cn/gleamoe/PrintCode.git
    cd PrintCode
    ```
 
@@ -94,9 +94,9 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 - **文件过滤**：如果目录内存在一个或多个 `.gitignore`，会先按其所在目录的作用域过滤文件；随后只输出常见代码文件和必要的构建配置文件，非文本文件、文档、图片、依赖目录、构建输出目录和 IDE 配置目录会被跳过。
 - **代码格式**：代码按原始格式显示，支持缩进，并会根据当前字体宽度自动换行以避免超出页面。但代码中所有的空白行均会被过滤不显示。
 
-下面是生成的[示例 PDF 文档](https://github.com/yliu7949/PrintCode/blob/master/demo.pdf)的截图：
+下面是生成的[示例 PDF 文档](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/blob/master/demo.pdf)的截图：
 
-![demo](https://raw.githubusercontent.com/yliu7949/PrintCode/master/demo.svg)
+![demo](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/raw/master/demo.svg)
 
 ## 常见问题
 
@@ -130,9 +130,5 @@ GitHub Actions 会在提交和合并请求时运行格式检查、测试、Clipp
 ## 贡献指南
 
 欢迎提交 Issue 和 Pull Request 来改进本项目。请确保提交的代码符合 Rust 编码规范。
-
-## 许可证
-
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fyliu7949%2FPrintCode?ref=badge_large&issueType=license)
 
  
