@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="190" src="https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/raw/master/logo.svg" style="text-align: center;" alt="PrintCode logo">
+  <img width="190" src="./logo.svg" alt="PrintCode logo">
 </p>
 
 
