@@ -95,9 +95,9 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 - **文件过滤**：如果目录内存在一个或多个 `.gitignore`，会先按其所在目录的作用域过滤文件；随后只输出常见代码文件和必要的构建配置文件，非文本文件、文档、图片、依赖目录、构建输出目录和 IDE 配置目录会被跳过。
 - **代码格式**：代码按原始格式显示，支持缩进，并会根据当前字体宽度自动换行以避免超出页面。但代码中所有的空白行均会被过滤不显示。
 
-下面是生成的[示例 PDF 文档](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/blob/master/demo.pdf)的截图：
+下面是生成的[示例 PDF 文档](./demo.pdf)的截图：
 
-![demo](https://git.lug.ustc.edu.cn/gleamoe/PrintCode/-/raw/master/demo.svg)
+![PrintCode 生成的 PDF 文档截图](./docs/images/printcode-pdf-output-preview.png)
 
 ## 常见问题
 
