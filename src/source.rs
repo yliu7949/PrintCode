@@ -123,8 +123,7 @@ pub fn collect_code_lines(
         for line_result in reader.lines() {
             let line = line_result?;
             if !line.trim().is_empty() {
-                let wrapped_line = fill(&line, Options::new(SOURCE_WRAP_WIDTH));
-                all_lines.extend(wrapped_line.lines().map(str::to_owned));
+                all_lines.extend(wrap_source_line(&line));
             }
         }
 
@@ -135,6 +134,14 @@ pub fn collect_code_lines(
         lines: all_lines,
         stats,
     })
+}
+
+fn wrap_source_line(line: &str) -> Vec<String> {
+    fill(line, Options::new(SOURCE_WRAP_WIDTH))
+        .lines()
+        .filter(|wrapped_line| !wrapped_line.trim().is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 fn is_skipped_directory(entry: &ignore::DirEntry) -> bool {
@@ -310,6 +317,31 @@ mod tests {
         assert_eq!(source.stats.selected_files.len(), 2);
 
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn source_wrapping_drops_artificial_empty_lines() {
+        let line =
+            "                warning(\"KSSOLV:Matgenlab:StandardTransmuter:SerialFallback\", ...";
+
+        let wrapped = wrap_source_line(line);
+
+        assert_eq!(wrapped.len(), 1);
+        assert_eq!(
+            wrapped[0],
+            "warning(\"KSSOLV:Matgenlab:StandardTransmuter:SerialFallback\", ..."
+        );
+    }
+
+    #[test]
+    fn limited_selection_always_contains_sixty_full_pages() {
+        let lines = (0..3_001).map(|index| index.to_string()).collect();
+
+        let selection = select_lines(lines, 50, true);
+
+        assert_eq!(selection.lines.len(), 3_000);
+        assert_eq!(selection.lines.first().map(String::as_str), Some("0"));
+        assert_eq!(selection.lines.last().map(String::as_str), Some("3000"));
     }
 
     fn temp_test_dir() -> PathBuf {
