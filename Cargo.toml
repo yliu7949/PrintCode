@@ -10,6 +10,6 @@ rusttype = "0.9.3"
 textwrap = "0.16.2"
 
 [dependencies.printpdf]
-version = "0.9.1"
+version = "0.12.8"
 default-features = false
 features = ["text_layout"]

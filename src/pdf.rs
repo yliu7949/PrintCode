@@ -174,11 +174,16 @@ impl PdfWriter {
     pub fn save(mut self, output_pdf_path: &Path) -> PdfResult<()> {
         self.finish_page();
 
+        let save_options = PdfSaveOptions {
+            optimize: true,
+            subset_fonts: true,
+            ..PdfSaveOptions::default()
+        };
         let mut warnings = Vec::new();
         let bytes = self
             .doc
             .with_pages(self.pages)
-            .save(&PdfSaveOptions::default(), &mut warnings);
+            .save(&save_options, &mut warnings);
         fs::write(output_pdf_path, bytes)?;
 
         Ok(())
