@@ -109,7 +109,7 @@ flowchart TB
 | macOS | `/System/Library/Fonts` | `SFNSMono.ttf` |
 | Linux | `/usr/share/fonts` | `truetype/dejavu/DejaVuSansMono.ttf` |
 
-如果 PDF 里出现方框、问号或乱码，通常不是代码坏了，而是当前字体缺少这些字符。中文注释较多的项目，Windows 可先试 `simsun.ttc`，Linux 可安装并指定 Noto CJK 一类字体。
+如果 PDF 里出现方框、问号或乱码，通常不是代码坏了，而是当前字体缺少这些字符。页眉缺字时，PrintCode 会先尝试历史默认字体 `simsun.ttc`，再尝试已安装的系统 CJK 字体，同时保持正文使用原来的等宽字体；如果找不到可用的回退字体，则会明确报错。中文注释较多的项目仍应为正文指定 CJK 字体：Windows 可先试 `simsun.ttc`，Linux 可安装并指定 Noto CJK 一类字体。
 
 ### 3.2 发行包目录
 

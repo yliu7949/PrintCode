@@ -118,4 +118,5 @@ fn print_output_summary(config: &crate::cli::CliConfig, layout: PdfLayout) {
         layout.header_rule_right_mm,
         layout.header_page_number_x_mm
     );
+    println!("[Info] Header font: '{}'.", layout.header_font);
 }

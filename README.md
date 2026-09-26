@@ -41,7 +41,7 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 
 假设你的项目文件夹为 `src_folder`，你希望将其中的代码生成为 PDF 文档。具体步骤如下：
 
-1. 准备字体文件，放在任意文件夹中。Windows 可使用 `C:/Windows/Fonts/simsun.ttc`；macOS 默认使用 `/System/Library/Fonts/SFNSMono.ttf`，通常无需额外指定。
+1. 准备字体文件，放在任意文件夹中。Windows 可使用 `C:/Windows/Fonts/simsun.ttc`；macOS 默认使用 `/System/Library/Fonts/SFNSMono.ttf`，通常无需额外指定。若正文等宽字体缺少页眉字符，PrintCode 会先尝试历史默认字体 `simsun.ttc`，再选择已安装的系统 CJK 字体，正文仍保持等宽排版。
 
 2. 运行下面的命令。macOS 可以直接使用默认字体：
 
@@ -111,6 +111,7 @@ PrintCode 是一个使用 Rust 语言编写的、用于从代码文件生成为�
 ### 3. 为什么生成的 PDF 文档中出现了乱码？
 
 可能是字体文件不支持代码中的字符集，请确保所选字体支持所使用的字符。
+页眉会先尝试当前字体和历史默认字体 `simsun.ttc`，再尝试系统 CJK 字体；如果系统中没有合适的字体，程序会明确报错并提示通过 `--font-dir` 和 `--font-name` 指定字体。
 
 ## 开发说明
 
